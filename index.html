@@ -63,16 +63,13 @@
 
     <section id="historyPage" class="p-6 max-w-4xl mx-auto hidden">
         <h2 class="text-2xl font-bold mb-6 text-gray-800">บันทึกที่ผ่านมา</h2>
-        <div id="historyList" class="space-y-4">
-            </div>
+        <div id="historyList" class="space-y-4"></div>
     </section>
 
     <section id="statsPage" class="p-6 max-w-4xl mx-auto hidden">
         <div class="bg-purple-50 p-8 rounded-3xl text-center border-2 border-dashed border-purple-200">
             <h2 class="text-2xl font-bold text-purple-700">สรุปภาพรวม PCSHS Dream</h2>
-            <div id="summaryStats" class="mt-4 text-gray-600">
-                กำลังคำนวณข้อมูล...
-            </div>
+            <div id="summaryStats" class="mt-4 text-gray-600">กำลังคำนวณข้อมูล...</div>
         </div>
     </section>
 </div>
@@ -93,15 +90,14 @@
 
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
-    let currentUser = ""; // ตัวแปรเก็บรหัสผู้ใช้ที่ล็อกอิน
+    let currentUser = "";
 
-    // --- 1. Login Logic ---
     window.checkLogin = () => {
         const pass = document.getElementById('passInput').value;
         const authorizedUsers = ['18112012', '11072012'];
         
         if(authorizedUsers.includes(pass)) {
-            currentUser = pass; // ตั้งค่า user ปัจจุบัน
+            currentUser = pass;
             document.getElementById('loginPage').style.display = 'none';
             document.getElementById('appContent').classList.remove('hidden');
             loadData();
@@ -110,7 +106,6 @@
         }
     };
 
-    // --- 2. Navigation Logic ---
     window.showPage = (pageId) => {
         ['home', 'history', 'stats'].forEach(p => {
             document.getElementById(p + 'Page').classList.add('hidden');
@@ -122,7 +117,6 @@
         document.getElementById('btn-' + pageId).classList.remove('text-gray-400');
     };
 
-    // --- 3. Data Entry & PCSHS Logic ---
     window.openModal = async (subject) => {
         const { value: formValues } = await Swal.fire({
             title: `บันทึกคะแนน: ${subject}`,
@@ -144,32 +138,19 @@
         });
 
         if (formValues) {
-            // บันทึกแยกตาม user path: records/18112012 หรือ records/11072012
             push(ref(db, `records/${currentUser}`), formValues);
-            
             const percent = (formValues.score / formValues.total) * 100;
-            if (percent >= 50) {
-                Swal.fire({
-                    icon: 'success',
-                    title: 'เก่งมากทำต่อไปนะ',
-                    text: 'เพื่ออนาคตของเรา PCSHS มันคือความฝันของเรา 🌟',
-                    confirmButtonColor: '#10b981'
-                });
-            } else {
-                Swal.fire({
-                    icon: 'info',
-                    title: 'ทำดีที่สุดแล้ว พยายามต่อไปนะ',
-                    text: 'PCSHS รอนายอยู่ สู้เขา! 💪',
-                    confirmButtonColor: '#3b82f6'
-                });
-            }
+            Swal.fire({
+                icon: percent >= 50 ? 'success' : 'info',
+                title: percent >= 50 ? 'เก่งมากทำต่อไปนะ' : 'ทำดีที่สุดแล้ว พยายามต่อไปนะ',
+                text: 'PCSHS คือความฝันของเรา สู้เขา! 💪',
+                confirmButtonColor: percent >= 50 ? '#10b981' : '#3b82f6'
+            });
         }
     };
 
-    // --- 4. Chart & Display Logic ---
     let myChart;
     function loadData() {
-        // ดึงข้อมูลแยกตาม user path
         onValue(ref(db, `records/${currentUser}`), (snapshot) => {
             const data = snapshot.val();
             const historyList = document.getElementById('historyList');
@@ -182,7 +163,6 @@
             if (data) {
                 const entries = Object.values(data);
                 totalRecords = entries.length;
-                
                 [...entries].reverse().forEach(item => {
                     if(historyList) {
                         historyList.innerHTML += `
@@ -194,175 +174,37 @@
                                     </div>
                                     <div class="text-xl font-bold">${item.score}/${item.total}</div>
                                 </div>
-                            </div>
-                        `;
+                            </div>`;
                     }
                     chartScores[item.subject].push((item.score/item.total)*100);
                 });
             }
-            
             if(summaryStats) summaryStats.innerHTML = `บันทึกไปแล้วทั้งหมด <b>${totalRecords}</b> ครั้ง <br> สู้ๆ เพื่อ PCSHS!`;
             updateChart(chartScores);
         });
     }
 
     function getColor(subj) {
-        if(subj === 'วิทยาศาสตร์') return 'border-blue-400';
-        if(subj === 'คณิตศาสตร์') return 'border-rose-400';
-        return 'border-emerald-400';
+        return subj === 'วิทยาศาสตร์' ? 'border-blue-400' : subj === 'คณิตศาสตร์' ? 'border-rose-400' : 'border-emerald-400';
     }
 
     function updateChart(scores) {
-        const canvas = document.getElementById('growthChart');
-        if(!canvas) return;
-        const ctx = canvas.getContext('2d');
+        const ctx = document.getElementById('growthChart')?.getContext('2d');
+        if (!ctx) return;
         if (myChart) myChart.destroy();
-        
         myChart = new Chart(ctx, {
             type: 'line',
             data: {
-                labels: Array.from({length: 5}, (_, i) => `ครั้งที่ ${i+1}`),
+                labels: ['1', '2', '3', '4', '5'],
                 datasets: [
-                    { label: 'วิทย์ (%)', data: scores['วิทยาศาสตร์'].slice(-5), borderColor: '#60a5fa', tension: 0.3, fill: false },
-                    { label: 'คณิต (%)', data: scores['คณิตศาสตร์'].slice(-5), borderColor: '#fb7185', tension: 0.3, fill: false },
-                    { label: 'อื่นๆ (%)', data: scores['วิชาอื่นๆ'].slice(-5), borderColor: '#34d399', tension: 0.3, fill: false }
+                    { label: 'วิทย์', data: scores['วิทยาศาสตร์'].slice(-5), borderColor: '#60a5fa', tension: 0.3 },
+                    { label: 'คณิต', data: scores['คณิตศาสตร์'].slice(-5), borderColor: '#fb7185', tension: 0.3 },
+                    { label: 'อื่นๆ', data: scores['วิชาอื่นๆ'].slice(-5), borderColor: '#34d399', tension: 0.3 }
                 ]
             },
-            options: { 
-                maintainAspectRatio: false,
-                scales: { y: { min: 0, max: 100 } },
-                plugins: { legend: { labels: { usePointStyle: true, boxWidth: 6 } } }
-            }
+            options: { maintainAspectRatio: false, scales: { y: { min: 0, max: 100 } } }
         });
     }
 </script>
-
 </body>
 </html>
-    window.showPage = (pageId) => {
-        ['home', 'history', 'stats'].forEach(p => {
-            document.getElementById(p + 'Page').classList.add('hidden');
-            document.getElementById('btn-' + p).classList.remove('nav-active');
-            document.getElementById('btn-' + p).classList.add('text-gray-400');
-        });
-        document.getElementById(pageId + 'Page').classList.remove('hidden');
-        document.getElementById('btn-' + pageId).classList.add('nav-active');
-        document.getElementById('btn-' + pageId).classList.remove('text-gray-400');
-    };
-
-    // --- 3. Data Entry & PCSHS Logic ---
-    window.openModal = async (subject) => {
-        const { value: formValues } = await Swal.fire({
-            title: `บันทึกคะแนน: ${subject}`,
-            html:
-                '<input id="sw-lesson" class="swal2-input" placeholder="บทเรียน">' +
-                '<input id="sw-total" type="number" class="swal2-input" placeholder="จำนวนข้อทั้งหมด">' +
-                '<input id="sw-score" type="number" class="swal2-input" placeholder="คะแนนที่ได้">',
-            confirmButtonText: 'บันทึกข้อมูล',
-            preConfirm: () => {
-                const lesson = document.getElementById('sw-lesson').value;
-                const total = parseFloat(document.getElementById('sw-total').value);
-                const score = parseFloat(document.getElementById('sw-score').value);
-                if (!lesson || isNaN(total) || isNaN(score)) {
-                    Swal.showValidationMessage('กรุณากรอกข้อมูลให้ครบถ้วน');
-                    return false;
-                }
-                return { subject, lesson, total, score, date: new Date().toLocaleString('th-TH') };
-            }
-        });
-
-        if (formValues) {
-            push(ref(db, 'records/'), formValues);
-            
-            const percent = (formValues.score / formValues.total) * 100;
-            if (percent >= 50) {
-                Swal.fire({
-                    icon: 'success',
-                    title: 'เก่งมากทำต่อไปนะ',
-                    text: 'เพื่ออนาคตของเรา PCSHS มันคือความฝันของเรา 🌟',
-                    confirmButtonColor: '#10b981'
-                });
-            } else {
-                Swal.fire({
-                    icon: 'info',
-                    title: 'ทำดีที่สุดแล้ว พยายามต่อไปนะ',
-                    text: 'PCSHS รอนายอยู่ สู้เขา! 💪',
-                    confirmButtonColor: '#3b82f6'
-                });
-            }
-        }
-    };
-
-    // --- 4. Chart & Display Logic ---
-    let myChart;
-    function loadData() {
-        onValue(ref(db, 'records/'), (snapshot) => {
-            const data = snapshot.val();
-            const historyList = document.getElementById('historyList');
-            const summaryStats = document.getElementById('summaryStats');
-            if(historyList) historyList.innerHTML = '';
-            
-            let chartScores = { 'วิทยาศาสตร์': [], 'คณิตศาสตร์': [], 'วิชาอื่นๆ': [] };
-            let totalRecords = 0;
-
-            if (data) {
-                const entries = Object.values(data);
-                totalRecords = entries.length;
-                
-                [...entries].reverse().forEach(item => {
-                    if(historyList) {
-                        historyList.innerHTML += `
-                            <div class="bg-white p-5 rounded-2xl shadow-sm border-r-8 ${getColor(item.subject)}">
-                                <div class="flex justify-between items-center">
-                                    <div>
-                                        <h4 class="font-bold text-gray-800">${item.subject}: ${item.lesson}</h4>
-                                        <p class="text-xs text-gray-400">${item.date}</p>
-                                    </div>
-                                    <div class="text-xl font-bold">${item.score}/${item.total}</div>
-                                </div>
-                            </div>
-                        `;
-                    }
-                    chartScores[item.subject].push((item.score/item.total)*100);
-                });
-
-                if(summaryStats) summaryStats.innerHTML = `บันทึกไปแล้วทั้งหมด <b>${totalRecords}</b> ครั้ง <br> สู้ๆ เพื่อ PCSHS!`;
-                updateChart(chartScores);
-            }
-        });
-    }
-
-    function getColor(subj) {
-        if(subj === 'วิทยาศาสตร์') return 'border-blue-400';
-        if(subj === 'คณิตศาสตร์') return 'border-rose-400';
-        return 'border-emerald-400';
-    }
-
-    function updateChart(scores) {
-        const canvas = document.getElementById('growthChart');
-        if(!canvas) return;
-        const ctx = canvas.getContext('2d');
-        if (myChart) myChart.destroy();
-        
-        myChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: Array.from({length: 5}, (_, i) => `ครั้งที่ ${i+1}`),
-                datasets: [
-                    { label: 'วิทย์ (%)', data: scores['วิทยาศาสตร์'].slice(-5), borderColor: '#60a5fa', tension: 0.3, fill: false },
-                    { label: 'คณิต (%)', data: scores['คณิตศาสตร์'].slice(-5), borderColor: '#fb7185', tension: 0.3, fill: false },
-                    { label: 'อื่นๆ (%)', data: scores['วิชาอื่นๆ'].slice(-5), borderColor: '#34d399', tension: 0.3, fill: false }
-                ]
-            },
-            options: { 
-                maintainAspectRatio: false,
-                scales: { y: { min: 0, max: 100 } },
-                plugins: { legend: { labels: { usePointStyle: true, boxWidth: 6 } } }
-            }
-        });
-    }
-</script>
-
-</body>
-</html>
-
